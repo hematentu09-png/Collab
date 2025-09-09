@@ -1,81 +1,69 @@
-<!DOCTYPE html>
-<header>
-<h1>Manga Artists & Collections</h1>
-</header>
+<!doctype html>
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function dColor(colors,i){ return colors[i % colors.length] || '#888'; }
 
 
-<div class="search-bar">
-<input type="text" id="search" placeholder="Search artists or collections...">
-</div>
-
-
-<div class="container" id="artistContainer">
-<!-- Cards will be inserted here by JS -->
-</div>
-
-
-<script>
-const artists = [
-{
-name: "Eiichiro Oda",
-collections: ["One Piece"]
-},
-{
-name: "Masashi Kishimoto",
-collections: ["Naruto", "Samurai 8"]
-},
-{
-name: "Akira Toriyama",
-collections: ["Dragon Ball", "Dr. Slump"]
-},
-{
-name: "Rumiko Takahashi",
-collections: ["Inuyasha", "Ranma ½", "Urusei Yatsura"]
-},
-{
-name: "Hajime Isayama",
-collections: ["Attack on Titan"]
-},
-{
-name: "Naoko Takeuchi",
-collections: ["Sailor Moon"]
-}
-];
-
-
-const container = document.getElementById("artistContainer");
-
-
-function displayArtists(list) {
-container.innerHTML = "";
-list.forEach(artist => {
-const card = document.createElement("div");
-card.className = "card";
-card.innerHTML = `
-<h2>${artist.name}</h2>
-<h4>Collections:</h4>
-<ul class="collection">
-${artist.collections.map(c => <li>${c}</li>).join("")}
-</ul>
-`;
-container.appendChild(card);
+// ---------- Wire UI ----------
+function wire(){
+// search
+el('#q').addEventListener('input',(e)=>{ state.q = e.target.value; // re-render: stop existing animators
+stopAll(); renderGrid(); // resume playing ones according to state
+if(state.speed) playAllWithSpeed(state.speed);
 });
+el('#styleFilter').addEventListener('change',(e)=>{ state.style = e.target.value; renderGrid(); if(state.speed) playAllWithSpeed(state.speed); });
+el('#speed').addEventListener('change',(e)=>{ state.speed = parseFloat(e.target.value); playAllWithSpeed(state.speed); });
+
+
+el('#playAll').addEventListener('click',()=> playAllWithSpeed(state.speed));
+el('#pauseAll').addEventListener('click',()=> stopAll());
+el('#export').addEventListener('click', ()=>{ const blob = new Blob([JSON.stringify(animations, null, 2)],{type:'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='stopmotion-animations.json'; a.click(); URL.revokeObjectURL(url); });
+
+
+// delegated click handlers
+el('#grid').addEventListener('click',(e)=>{
+if(e.target.matches('[data-open]')){
+const id = e.target.getAttribute('data-open'); openDetails(id);
+}
+if(e.target.matches('[data-toggle]')){
+const id = e.target.getAttribute('data-toggle'); const cvs = document.querySelector(`canvas[data-id='${id}']`);
+if(cvs && cvs._anim){ cvs._anim.toggle(state.speed); }
+}
+});
+
+
+// dialog controls
+el('#d-play').addEventListener('click', ()=>{ const cvs = el('#d-canvas'); if(cvs._anim) cvs._anim.play(state.speed); });
+el('#d-pause').addEventListener('click', ()=>{ const cvs = el('#d-canvas'); if(cvs._anim) cvs._anim.pause(); });
+
+
+// theme
+const themeToggle = el('#themeToggle'); themeToggle.addEventListener('change', ()=>{ const theme = themeToggle.checked? 'light':'dark'; document.body.setAttribute('data-theme', theme); });
+
+
+// start
+document.addEventListener('DOMContentLoaded', ()=>{});
 }
 
 
-// Initial display
-displayArtists(artists);
+function stopAll(){ document.querySelectorAll('canvas.anim-canvas').forEach(c=>{ if(c._anim) c._anim.pause(); }); }
+function playAllWithSpeed(speed=1){ state.speed=speed; document.querySelectorAll('canvas.anim-canvas').forEach(c=>{ if(c._anim) c._anim.play(speed); }); }
 
 
-// Search functionality
-document.getElementById("search").addEventListener("input", function(e) {
-const query = e.target.value.toLowerCase();
-const filtered = artists.filter(a =>
-a.name.toLowerCase().includes(query) ||
-a.collections.some(c => c.toLowerCase().includes(query))
-);
-displayArtists(filtered);
-});
+// ---------- Details dialog ----------
+function openDetails(id){ const a = animations.find(x=>x.id===id); if(!a) return; const dlg = el('#details'); el('#d-title').textContent = a.title; el('#d-style').textContent = a.style; el('#d-desc').textContent = a.description || ''; el('#d-frames').textContent = a.frames; el('#d-duration').textContent = a.duration; el('#d-loop').textContent = a.loop? 'Yes':'No';
+// setup dialog canvas
+const dcv = el('#d-canvas'); dcv.width = 420; dcv.height = 240; const anim = new StopAnimator(dcv,a); dcv._anim = anim; anim.play(state.speed);
+// thumbs
+const thumbs = el('#thumbs'); thumbs.innerHTML = '';
+const sampleCount = Math.min(6,a.frames);
+for(let i=0;i<sampleCount;i++){ const sm = document.createElement('canvas'); sm.width=70; sm.height=50; sm.style.borderRadius='6px'; sm.style.background='rgba(255,255,255,0.02)'; const sctx = sm.getContext('2d'); // draw frame snapshot
+// To draw a frame snapshot, temporarily render using animator methods
+const temp = new StopAnimator(sm,a); temp.frame = Math.floor(i*(a.frames/sampleCount)); temp.render(); thumbs.appendChild(sm); }
+dlg.showModal(); }
+
+
+// ---------- Init call ----------
+init();
 </script>
 </body>
 </html>
