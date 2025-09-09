@@ -1,69 +1,358 @@
 <!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WB Dashboard · Rod Stop‑Motion Styles</title>
+<style>
+  :root{ --bg:#0b1220; --panel:#0f1724; --muted:#9aa6bf; --text:#e6eef8; --accent:#7c5cff; --card:#0b1230; --glass: rgba(255,255,255,0.03); }
+  [data-theme="light"]{ --bg:#f4f7fb; --panel:#ffffff; --muted:#5b6b85; --text:#071428; --accent:#5b40ff; --card:#fcfdff; --glass: rgba(2,6,23,0.03); }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:var(--bg); color:var(--text);}
+  .wrap{max-width:1200px;margin:24px auto;padding:18px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .logo{display:flex;align-items:center;gap:12px}
+  .badge{display:inline-grid;place-items:center;width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#24d2c1);font-weight:700}
+  h1{margin:0;font-size:20px}
+  .subtitle{color:var(--muted);font-size:13px}
+
+  .controls{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .input, .select{background:var(--panel);border:1px solid rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;color:var(--text)}
+  .btn{background:var(--accent);border:none;padding:9px 12px;border-radius:10px;color:white;cursor:pointer}
+  .ghost{background:transparent;border:1px solid rgba(255,255,255,0.05)}
+
+  .stats{display:flex;gap:12px;margin:18px 0}
+  .stat{background:var(--card);padding:12px;border-radius:12px;min-width:110px}
+  .stat h3{margin:0;font-size:12px;color:var(--muted)}
+  .stat p{margin:6px 0 0;font-weight:700;font-size:18px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border:1px solid rgba(255,255,255,0.04);padding:12px;border-radius:12px}
+  .anim-canvas{width:100%;height:180px;background:var(--glass);border-radius:8px;display:block}
+  .meta{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+  .title{font-weight:700}
+  .tag{font-size:12px;color:var(--muted)}
+  .card footer{display:flex;gap:6px;margin-top:10px;justify-content:space-between;align-items:center}
+  .chip{padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.02);font-size:12px}
+
+  dialog{border:none;border-radius:12px;padding:0;width:min(900px,96vw)}
+  dialog::backdrop{background:rgba(0,0,0,0.5)}
+  .modal{padding:16px}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+
+  footer.page{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+
+  @media (max-width:720px){ .anim-canvas{height:140px} }
+</style>
+</head>
+<body data-theme="dark">
+  <div class="wrap">
+    <header>
+      <div class="logo">
+        <div class="badge">WB</div>
+        <div>
+          <h1>WB Dashboard · Rod Stop‑Motion</h1>
+          <div class="subtitle">Showcase various rod animation styles — simulated stop‑motion previews, metadata & controls (single file).</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:13px;color:var(--muted);">Theme</label>
+        <input id="themeToggle" type="checkbox" />
+      </div>
+    </header>
+
+    <div class="controls">
+      <input id="q" class="input" placeholder="Search title or style..." />
+      <select id="styleFilter" class="select">
+        <option value="">All styles</option>
+      </select>
+      <select id="speed" class="select">
+        <option value="1">Speed: Normal</option>
+        <option value="0.6">Speed: Slow</option>
+        <option value="1.4">Speed: Fast</option>
+      </select>
+      <button id="playAll" class="btn">Play All</button>
+      <button id="pauseAll" class="btn ghost">Pause All</button>
+      <button id="export" class="btn ghost">Export JSON</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><h3>Animations</h3><p id="s-count">0</p></div>
+      <div class="stat"><h3>Styles</h3><p id="s-styles">0</p></div>
+      <div class="stat"><h3>Total Frames (approx)</h3><p id="s-frames">0</p></div>
+    </div>
+
+    <main class="grid" id="grid"></main>
+
+    <dialog id="details">
+      <div class="modal">
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <canvas id="d-canvas" width="420" height="240" style="border-radius:8px;background:rgba(255,255,255,0.02)"></canvas>
+          <div style="flex:1">
+            <h2 id="d-title"></h2>
+            <div id="d-style" class="tag"></div>
+            <p id="d-desc" style="color:var(--muted);margin-top:8px"></p>
+            <div style="margin-top:10px">
+              <strong>Frames:</strong> <span id="d-frames"></span> • <strong>Duration:</strong> <span id="d-duration"></span>s • <strong>Loop:</strong> <span id="d-loop"></span>
+            </div>
+            <div style="margin-top:12px">
+              <button id="d-play" class="btn">Play</button>
+              <button id="d-pause" class="btn ghost">Pause</button>
+              <form method="dialog" style="display:inline"><button class="btn">Close</button></form>
+            </div>
+            <div style="margin-top:14px">
+              <h4>Frame samples</h4>
+              <div id="thumbs" style="display:flex;gap:6px;margin-top:6px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <footer class="page">This is an offline demo: customize the <code>animations</code> array in the script to add your own stop‑motion setups.</footer>
+  </div>
+
+<script>
+// ---------- Sample data: rod-based stop-motion animations ----------
+const animations = [
+  {
+    id:'rod-clay-1', title:'Clay Rod — Walk Cycle', style:'Clay', frames:12, duration:1.2, loop:true,
+    colors:['#d97706','#ef4444','#f97316','#f59e0b','#10b981'], description:'A chunky clay rod walking cycle with bouncy joints.'
+  },
+  {
+    id:'rod-paper-1', title:'Paper Cutout — Swing', style:'Paper Cutout', frames:10, duration:1.5, loop:true,
+    colors:['#efefef','#eab308','#84cc16','#60a5fa','#7c3aed'], description:'Flat paper pieces rotating and swinging in a stylized loop.'
+  },
+  {
+    id:'rod-puppet-1', title:'Puppet — Reach', style:'Puppet', frames:14, duration:1.6, loop:true,
+    colors:['#111827','#0ea5e9','#f472b6','#34d399','#facc15'], description:'A jointed puppet reaching out frame-by-frame.'
+  },
+  {
+    id:'rod-sil-1', title:'Silhouette — Glide', style:'Silhouette', frames:8, duration:1.0, loop:true,
+    colors:['#000000','#0f1724'], description:'High-contrast silhouette glide with strong backlight.'
+  },
+  {
+    id:'rod-stop-1', title:'Mechanical Rod — Click', style:'Mechanical', frames:9, duration:0.9, loop:true,
+    colors:['#94a3b8','#64748b','#0ea5e9','#06b6d4'], description:'Stiff mechanical rod with precise jerks and stops.'
+  }
+];
+
+// ---------- State ----------
+const state = {
+  playing: new Set(), // ids playing
+  speed: 1,
+  q: '',
+  style: ''
+};
+
+// ---------- Utilities ----------
+const el = (s)=> document.querySelector(s);
+const els = (s)=> [...document.querySelectorAll(s)];
+
+function init(){
+  populateFilters();
+  renderGrid();
+  updateStats();
+  wire();
+}
+
+function populateFilters(){
+  const styles = [...new Set(animations.map(a=>a.style))].sort();
+  const sel = el('#styleFilter');
+  sel.innerHTML = '<option value="">All styles</option>' + styles.map(s=>`<option>${s}</option>`).join('');
+}
+
+function renderGrid(){
+  const container = el('#grid');
+  const list = getFiltered();
+  container.innerHTML = '';
+  list.forEach(a => {
+    const card = document.createElement('article'); card.className='card';
+    const canvas = document.createElement('canvas'); canvas.className='anim-canvas'; canvas.width=800; canvas.height=360;
+    canvas.dataset.id = a.id;
+    const meta = document.createElement('div'); meta.className='meta';
+    meta.innerHTML = `<div><div class='title'>${a.title}</div><div class='tag'>${a.style}</div></div>`;
+    const footer = document.createElement('footer');
+    footer.innerHTML = `<div class='chip'>${a.frames} frames</div><div><button data-open='${a.id}' class='btn'>Details</button> <button data-toggle='${a.id}' class='btn ghost'>Play</button></div>`;
+    card.appendChild(canvas); card.appendChild(meta); card.appendChild(footer);
+    container.appendChild(card);
+    // attach animator
+    const animator = new StopAnimator(canvas, a);
+    canvas._anim = animator;
+    // autoplay by default
+    state.playing.add(a.id);
+    animator.play(state.speed);
+  });
+}
+
+function getFiltered(){
+  return animations.filter(a=>{
+    if(state.q){ const q=state.q.toLowerCase(); if(!(a.title.toLowerCase().includes(q) || (a.style||'').toLowerCase().includes(q))) return false; }
+    if(state.style && a.style !== state.style) return false;
+    return true;
+  });
+}
+
+function updateStats(){
+  el('#s-count').textContent = animations.length;
+  el('#s-styles').textContent = [...new Set(animations.map(a=>a.style))].length;
+  el('#s-frames').textContent = animations.reduce((s,a)=> s+a.frames, 0);
+}
+
+// ---------- StopAnimator: draws programmatic frames to canvas to simulate rod stop-motion ----------
+class StopAnimator{
+  constructor(canvas, data){
+    this.canvas = canvas; this.ctx = canvas.getContext('2d'); this.data = data;
+    this.frame = 0; this.playing = false; this.last = 0; this._bound = this.tick.bind(this);
+  }
+  play(speed=1){ this.speed = speed; this.playing = true; this.last = performance.now(); requestAnimationFrame(this._bound); }
+  pause(){ this.playing = false; }
+  toggle(speed=1){ if(this.playing) this.pause(); else this.play(speed); }
+  tick(ts){ if(!this.playing) return; const dt = ts - this.last; const msPerCycle = this.data.duration*1000 / this.speed; const msPerFrame = msPerCycle / this.data.frames; if(dt >= msPerFrame){ const n = Math.floor(dt / msPerFrame); this.frame = (this.frame + n) % this.data.frames; this.last = ts; this.render(); } requestAnimationFrame(this._bound); }
+  // draw based on style
+  render(){ const c=this.canvas, ctx=this.ctx, d=this.data; const w=c.width, h=c.height; ctx.clearRect(0,0,w,h);
+    // background
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--panel'); ctx.fillRect(0,0,w,h);
+    // choose style renderer
+    const t = this.frame / d.frames;
+    switch(d.style){
+      case 'Clay': this.renderClay(ctx,w,h,t); break;
+      case 'Paper Cutout': this.renderPaper(ctx,w,h,t); break;
+      case 'Puppet': this.renderPuppet(ctx,w,h,t); break;
+      case 'Silhouette': this.renderSilhouette(ctx,w,h,t); break;
+      case 'Mechanical': this.renderMech(ctx,w,h,t); break;
+      default: this.renderClay(ctx,w,h,t); break;
+    }
+  }
+
+  // A few style rendering helpers (purely programmatic shapes)
+  renderClay(ctx,w,h,t){
+    // background plate
+    ctx.fillStyle = '#0b1220'; ctx.fillRect(0,0,w,h);
+    // ground
+    ctx.fillStyle = '#14202b'; ctx.fillRect(0,h*0.78,w,h*0.22);
+    // rod body - oscillating vertical walk
+    const x = w*0.2 + (w*0.6) * t;
+    const y = h*0.5 + Math.sin(t*Math.PI*2*2)*8; // small bob
+    // draw shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(x,h*0.82,40,10,0,0,Math.PI*2); ctx.fill();
+    // draw clay segments
+    const segs=6; for(let i=0;i<segs;i++){ const rx=20; const ry=12; const sx = x - i*18; const sy = y + i*8; ctx.fillStyle = dColor(this.data.colors,i); roundRect(ctx,sx- rx, sy-ry, rx*2, ry*2, 12); ctx.fill(); }
+    // rod head
+    ctx.fillStyle = '#ffe8b3'; ctx.beginPath(); ctx.ellipse(x+8,y-30,20,18,0,0,Math.PI*2); ctx.fill();
+  }
+  renderPaper(ctx,w,h,t){
+    ctx.fillStyle = '#f7f8fb'; ctx.fillRect(0,0,w,h);
+    // paper shadow layer to feel cutout
+    ctx.fillStyle = '#eef2ff'; ctx.fillRect(0,h*0.75,w,h*0.25);
+    // simple rotating flat rod made of rectangles
+    const cx = w*0.5; const cy = h*0.45;
+    const angle = (t*2*Math.PI)*0.5; // slow rotate
+    for(let i=0;i<5;i++){
+      ctx.save(); ctx.translate(cx + i*6 - 20, cy + i*8); ctx.rotate(angle + i*0.08);
+      ctx.fillStyle = dColor(this.data.colors,i);
+      ctx.fillRect(-60, -8, 120, 16);
+      ctx.restore();
+    }
+    // add staples / pin
+    ctx.fillStyle = '#111827'; ctx.fillRect(cx-2, cy-32, 4, 8);
+  }
+  renderPuppet(ctx,w,h,t){
+    ctx.fillStyle = '#071427'; ctx.fillRect(0,0,w,h);
+    const cx = w*0.45; const cy = h*0.5;
+    // limbs: swings with easing steps to feel stop-motion
+    const step = Math.floor(t*this.data.frames);
+    const limb = Math.sin((step/this.data.frames)*Math.PI*2)*40;
+    // body
+    ctx.fillStyle = '#0ea5e9'; roundRect(ctx,cx-20,cy-40,40,80,10); ctx.fill();
+    // head
+    ctx.fillStyle = '#f9a8d4'; ctx.beginPath(); ctx.ellipse(cx,cy-60,26,24,0,0,Math.PI*2); ctx.fill();
+    // limbs with joints
+    ctx.strokeStyle = '#111827'; ctx.lineWidth=6; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(cx,cy-10); ctx.lineTo(cx-40,cy-10+limb*0.1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx,cy-10); ctx.lineTo(cx+40,cy-10-limb*0.1); ctx.stroke();
+    // strings
+    ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(cx-40,cy-90); ctx.lineTo(cx-40,cy-10); ctx.moveTo(cx+40,cy-90); ctx.lineTo(cx+40,cy-10); ctx.stroke();
+  }
+  renderSilhouette(ctx,w,h,t){
+    // bright backlight
+    const grad = ctx.createLinearGradient(0,0,w,0); grad.addColorStop(0,'#fdf2f8'); grad.addColorStop(1,'#fee2e2'); ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
+    // silhouette rod sliding
+    const x = w*0.2 + (w*0.6)*(1 - Math.abs(Math.sin(t*Math.PI)));
+    ctx.fillStyle='#000'; roundRect(ctx,x,h*0.35,120,20,10); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x+110,h*0.42,40,20,0,0,Math.PI*2); ctx.fill();
+  }
+  renderMech(ctx,w,h,t){
+    ctx.fillStyle = '#0b1220'; ctx.fillRect(0,0,w,h);
+    const cx = w*0.5; const cy = h*0.5;
+    const step = Math.floor(t*this.data.frames);
+    // toothed bar with incremental steps - to feel stop-motion ticks
+    for(let i=0;i<12;i++){ const x = cx - 160 + i*30; ctx.fillStyle = i%2? '#94a3b8':'#64748b'; roundRect(ctx,x,cy-10,24,40,4); ctx.fill(); }
+    // rod indicator
+    const pos = cx - 160 + (step % 12)*30; ctx.fillStyle = '#06b6d4'; roundRect(ctx,pos-8,cy-30,16,80,6); ctx.fill();
+  }
+}
+
+// small helpers
 function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 function dColor(colors,i){ return colors[i % colors.length] || '#888'; }
 
-
 // ---------- Wire UI ----------
 function wire(){
-// search
-el('#q').addEventListener('input',(e)=>{ state.q = e.target.value; // re-render: stop existing animators
-stopAll(); renderGrid(); // resume playing ones according to state
-if(state.speed) playAllWithSpeed(state.speed);
-});
-el('#styleFilter').addEventListener('change',(e)=>{ state.style = e.target.value; renderGrid(); if(state.speed) playAllWithSpeed(state.speed); });
-el('#speed').addEventListener('change',(e)=>{ state.speed = parseFloat(e.target.value); playAllWithSpeed(state.speed); });
+  // search
+  el('#q').addEventListener('input',(e)=>{ state.q = e.target.value; // re-render: stop existing animators
+    stopAll(); renderGrid(); // resume playing ones according to state
+    if(state.speed) playAllWithSpeed(state.speed);
+  });
+  el('#styleFilter').addEventListener('change',(e)=>{ state.style = e.target.value; renderGrid(); if(state.speed) playAllWithSpeed(state.speed); });
+  el('#speed').addEventListener('change',(e)=>{ state.speed = parseFloat(e.target.value); playAllWithSpeed(state.speed); });
 
+  el('#playAll').addEventListener('click',()=> playAllWithSpeed(state.speed));
+  el('#pauseAll').addEventListener('click',()=> stopAll());
+  el('#export').addEventListener('click', ()=>{ const blob = new Blob([JSON.stringify(animations, null, 2)],{type:'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='stopmotion-animations.json'; a.click(); URL.revokeObjectURL(url); });
 
-el('#playAll').addEventListener('click',()=> playAllWithSpeed(state.speed));
-el('#pauseAll').addEventListener('click',()=> stopAll());
-el('#export').addEventListener('click', ()=>{ const blob = new Blob([JSON.stringify(animations, null, 2)],{type:'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='stopmotion-animations.json'; a.click(); URL.revokeObjectURL(url); });
+  // delegated click handlers
+  el('#grid').addEventListener('click',(e)=>{
+    if(e.target.matches('[data-open]')){
+      const id = e.target.getAttribute('data-open'); openDetails(id);
+    }
+    if(e.target.matches('[data-toggle]')){
+      const id = e.target.getAttribute('data-toggle'); const cvs = document.querySelector(`canvas[data-id='${id}']`);
+      if(cvs && cvs._anim){ cvs._anim.toggle(state.speed); }
+    }
+  });
 
+  // dialog controls
+  el('#d-play').addEventListener('click', ()=>{ const cvs = el('#d-canvas'); if(cvs._anim) cvs._anim.play(state.speed); });
+  el('#d-pause').addEventListener('click', ()=>{ const cvs = el('#d-canvas'); if(cvs._anim) cvs._anim.pause(); });
 
-// delegated click handlers
-el('#grid').addEventListener('click',(e)=>{
-if(e.target.matches('[data-open]')){
-const id = e.target.getAttribute('data-open'); openDetails(id);
+  // theme
+  const themeToggle = el('#themeToggle'); themeToggle.addEventListener('change', ()=>{ const theme = themeToggle.checked? 'light':'dark'; document.body.setAttribute('data-theme', theme); });
+
+  // start
+  document.addEventListener('DOMContentLoaded', ()=>{});
 }
-if(e.target.matches('[data-toggle]')){
-const id = e.target.getAttribute('data-toggle'); const cvs = document.querySelector(`canvas[data-id='${id}']`);
-if(cvs && cvs._anim){ cvs._anim.toggle(state.speed); }
-}
-});
-
-
-// dialog controls
-el('#d-play').addEventListener('click', ()=>{ const cvs = el('#d-canvas'); if(cvs._anim) cvs._anim.play(state.speed); });
-el('#d-pause').addEventListener('click', ()=>{ const cvs = el('#d-canvas'); if(cvs._anim) cvs._anim.pause(); });
-
-
-// theme
-const themeToggle = el('#themeToggle'); themeToggle.addEventListener('change', ()=>{ const theme = themeToggle.checked? 'light':'dark'; document.body.setAttribute('data-theme', theme); });
-
-
-// start
-document.addEventListener('DOMContentLoaded', ()=>{});
-}
-
 
 function stopAll(){ document.querySelectorAll('canvas.anim-canvas').forEach(c=>{ if(c._anim) c._anim.pause(); }); }
 function playAllWithSpeed(speed=1){ state.speed=speed; document.querySelectorAll('canvas.anim-canvas').forEach(c=>{ if(c._anim) c._anim.play(speed); }); }
 
-
 // ---------- Details dialog ----------
 function openDetails(id){ const a = animations.find(x=>x.id===id); if(!a) return; const dlg = el('#details'); el('#d-title').textContent = a.title; el('#d-style').textContent = a.style; el('#d-desc').textContent = a.description || ''; el('#d-frames').textContent = a.frames; el('#d-duration').textContent = a.duration; el('#d-loop').textContent = a.loop? 'Yes':'No';
-// setup dialog canvas
-const dcv = el('#d-canvas'); dcv.width = 420; dcv.height = 240; const anim = new StopAnimator(dcv,a); dcv._anim = anim; anim.play(state.speed);
-// thumbs
-const thumbs = el('#thumbs'); thumbs.innerHTML = '';
-const sampleCount = Math.min(6,a.frames);
-for(let i=0;i<sampleCount;i++){ const sm = document.createElement('canvas'); sm.width=70; sm.height=50; sm.style.borderRadius='6px'; sm.style.background='rgba(255,255,255,0.02)'; const sctx = sm.getContext('2d'); // draw frame snapshot
-// To draw a frame snapshot, temporarily render using animator methods
-const temp = new StopAnimator(sm,a); temp.frame = Math.floor(i*(a.frames/sampleCount)); temp.render(); thumbs.appendChild(sm); }
-dlg.showModal(); }
-
+  // setup dialog canvas
+  const dcv = el('#d-canvas'); dcv.width = 420; dcv.height = 240; const anim = new StopAnimator(dcv,a); dcv._anim = anim; anim.play(state.speed);
+  // thumbs
+  const thumbs = el('#thumbs'); thumbs.innerHTML = '';
+  const sampleCount = Math.min(6,a.frames);
+  for(let i=0;i<sampleCount;i++){ const sm = document.createElement('canvas'); sm.width=70; sm.height=50; sm.style.borderRadius='6px'; sm.style.background='rgba(255,255,255,0.02)'; const sctx = sm.getContext('2d'); // draw frame snapshot
+    // To draw a frame snapshot, temporarily render using animator methods
+    const temp = new StopAnimator(sm,a); temp.frame = Math.floor(i*(a.frames/sampleCount)); temp.render(); thumbs.appendChild(sm); }
+  dlg.showModal(); }
 
 // ---------- Init call ----------
 init();
 </script>
 </body>
 </html>
+
